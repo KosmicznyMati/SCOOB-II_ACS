@@ -2,9 +2,8 @@
 % Definitions & Starting Parameters
 
 % Time
-Duration = hours(0) + minutes(0) + seconds(1000);
-n = seconds(Duration);
-Time_Iteration_Period = 0.01;    % in seconds
+n  = 200;    % number of time steps
+dt = 0.1;    % time step in seconds
 
 % Initialising arrays
 q_array = zeros(n+1,4);
@@ -28,7 +27,7 @@ for count = 1:n
     q = q_array(count,:)';          % Extracting the current attitude quaternion
     omega = omega_array(count,:)';  % Extracting the current omega
     
-    % Normalising the current quaternion
+    % Normalising the current quaternion (move out of for loop? or leave for redundancy?
     q = Q_Normalise(q);
     
     % Error computations
@@ -38,17 +37,8 @@ for count = 1:n
     % The control law PD (based on Sarthak's pic, it works better, don't know why)
     T = K_p*q_error(2:end)*q_error(1) + K_d*omega_error;  % Control torque vector
     
-    % Satellite dynamics (based on Yang)
-    omega_dot = J_inv*(Cross3x33(omega)*J*omega) + J_inv*T; 
-    q_dot = Q_Dot(q,omega);
-    
-    % Truth simulation new quaternion & omega (NEED TO NUMERICALLY INTEGRATE USING RK4)
-    del_omega = omega_dot*Time_Iteration_Period;            % Change in omega over the time period
-    omega_new = omega + del_omega;                          % New omega
-    
-    del_q = q_dot*Time_Iteration_Period;                    % Change in current quaternion
-    q_new = q + del_q;                                      % New attitude quaternion      
-    
+    %Runge-Kutta Fourth Order numerical integration, output q normalisation
+    [omega_new,q_new] = RK4(J,J_inv,q,omega,dt,T);
     q_new = Q_Normalise(q_new);
     
     % Storing the new quaternion & omega back in arrays
@@ -58,3 +48,9 @@ end
 
 figure;
 plot(omega_array)
+title('Angular Velocity')
+legend('Omega_x','Omega_y','Omega_z')
+figure;
+plot(q_array)
+title('Attitude Quaternion')
+legend('q_0','q_1','q_2','q_3')
